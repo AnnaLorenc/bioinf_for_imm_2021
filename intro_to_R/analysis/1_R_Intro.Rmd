@@ -1,9 +1,19 @@
 ---
 title: "Part 1 - R introduction"
-output: html_notebook
-editor_options: 
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+editor_options:
   chunk_output_type: inline
 ---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+knitr::opts_chunk$set(eval=FALSE)
+```
 
 
 In this introduction to R, we will present the main R concepts, by introducing 
@@ -25,7 +35,7 @@ We will present basic R and then some useful features of the fantastic world of 
 These are preinstalled on the course Virtual Machine. To install them on your personal computer, get R  for your operating system from https://cran.r-project.org/ and RStudio (the free version) from https://www.rstudio.com/.
 
 
-#RStudio
+### RStudio
 
 RStudio is not a part of R, but an environment to work with R. If you are reading it in RStudio, this text is in a file is opened in the 'source' panel. You can either type your commands here and send them to the console for execution, or type them directly in the console. In another panel there are tabs for displaying your plots (Plots), tree of directory structure (Files), functions help (Help). The Last panel has tabs Environment - when you'll see all objects you create and History - with history of all executed commands.
 
@@ -489,7 +499,7 @@ ggplot() + geom_emoji("heart", color='steelblue') + theme_void()  ##ggplot is a 
 ```
 
 
-#Export plots
+### Export plots
 
 Plots can be exported from R, for example by opening a pdf environement.
 The pdf function opens a new pdf file. All the following plotting commands will

@@ -1,7 +1,17 @@
 ---
 title: "Part 2 - a glimpse into tidyverse world"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
 ---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+knitr::opts_chunk$set(eval=FALSE)
+```
+
 
 
 # Data frames and tibbles
