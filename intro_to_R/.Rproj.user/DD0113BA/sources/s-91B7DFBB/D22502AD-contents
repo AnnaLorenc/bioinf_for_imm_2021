@@ -1,0 +1,879 @@
+---
+title: "Introduction to R and RStudio part 1"
+author: "Anna Lorenc anna.lorenc@kcl.ac.uk"
+source: Rmd
+---
+
+
+
+```{r, include=FALSE, echo=FALSE}
+source("../bin/chunk-options.R")
+knitr_fig_path("01-")
+```
+
+
+## Before Starting The Workshop
+
+Please ensure you have the latest version of R and RStudio installed on your machine. This is important, as some packages used in the workshop may not install correctly (or at all) if R is not up to date.
+
+[Download and install the latest version of R here](https://www.r-project.org/)
+[Download and install RStudio here](https://www.rstudio.com/)
+
+This course is based on some Software Carpentry introductory courses and my own workshops run at GSTT.
+
+## Introduction to RStudio
+
+**Basic layout**
+
+When you first open RStudio, you will be greeted by three panels:
+
+  * The interactive R console (entire left)
+  * Environment/History (tabbed in upper right)
+  * Files/Plots/Packages/Help/Viewer (tabbed in lower right)
+
+![RStudio layout](../fig/01-rstudio.png)
+
+Once you open files, such as R scripts, an editor panel will also open
+in the top left.
+
+![RStudio layout with .R file open](../fig/01-rstudio-script.png)
+
+
+## Introduction to R
+
+Much of your time in R will be spent in the R interactive
+console. This is where you will run all of your code, and can be a
+useful environment to try out ideas before adding them to an R script
+file. This console in RStudio is the same as the one you would get if
+you typed in `R` in your command-line environment.
+
+The first thing you will see in the R interactive session is a bunch
+of information, followed by a ">" and a blinking cursor. In many ways
+this is similar to the shell environment you learned about during the
+shell lessons: it operates on the same idea of a "Read, evaluate,
+print loop": you type in commands, R tries to execute them, and then
+returns a result.
+
+## Work flow within RStudio
+There are two main ways one can work within RStudio.
+
+1. Test and play within the interactive R console then copy code into
+a .R file to run later.
+   *  This works well when doing small tests and initially starting off.
+   *  It quickly becomes laborious
+2. Start writing in an .R file and use RStudio's short cut keys for the Run command
+to push the current line, selected lines or modified lines to the
+interactive R console.
+   * This is a great way to start; all your code is saved for later
+   * You will be able to run the file you create from within RStudio
+   or using R's `source()`  function.
+
+> ## Tip: Running segments of your code
+>
+> RStudio offers you great flexibility in running code from within the editor
+> window. There are buttons, menu choices, and keyboard shortcuts. To run the
+> current line, you can 1. click on the `Run` button above the editor panel,
+> or 2. select "Run Lines" from the "Code" menu, or 3. hit Ctrl-Enter in Windows
+> or Linux or Command-Enter on OS X. (This shortcut can also be seen by hovering
+> the mouse over the button). To run a block of code, select it and then `Run`.
+> If you have modified a line of code within a block of code you have just run,
+> there is no need to reselect the section and `Run`, you can use the next button
+> along, `Re-run the previous region`. This will run the previous code block
+> including the modifications you have made.
+
+
+> ## Tip: Cancelling commands
+>
+> If you're using R from the commandline instead of from within RStudio,
+> you need to use `Ctrl+C` instead of `Esc` to cancel the command. This
+> applies to Mac users as well!
+>
+> Cancelling a command isn't only useful for killing incomplete commands:
+> you can also use it to tell R to stop running code (for example if it's
+> taking much longer than you expect), or to get rid of the code you're
+> currently writing.
+>
+
+Now, open a new file (via menu File-->New File-->R script)) and save it as `Rcourse_1.R`.
+If you type your commands here and send them to execute in the console, you'll have notes from the course.
+To add comments (non-executable text), start text with ##
+
+```{r}
+##comment example
+```
+
+
+## Using R as a calculator
+
+The simplest thing you could do with R is do arithmetic:
+
+```{r}
+1 + 100
+```
+
+And R will print out the answer, with a preceding "[1]". Don't worry about this
+for now, we'll explain that later. For now think of it as indicating output.
+
+Like bash, if you type in an incomplete command, R will wait for you to
+complete it:
+
+~~~
+> 1 +
+~~~
+
+
+~~~
++
+~~~
+
+
+Any time you hit return and the R session shows a "+" instead of a ">", it
+means it's waiting for you to complete the command. If you want to cancel
+a command you can simply hit "Esc" and RStudio will give you back the ">"
+prompt.
+
+
+When using R as a calculator, the order of operations is the same as you
+would have learned back in school.
+
+From highest to lowest precedence:
+
+ * Parentheses: `(`, `)`
+ * Exponents: `^` or `**`
+ * Divide: `/`
+ * Multiply: `*`
+ * Add: `+`
+ * Subtract: `-`
+
+```{r}
+3 + 5 * 2
+```
+
+Use parentheses to group operations in order to force the order of
+evaluation if it differs from the default, or to make clear what you
+intend.
+
+```{r}
+(3 + 5) * 2
+```
+
+This can get unwieldy when not needed, but  clarifies your intentions.
+Remember that others may later read your code.
+
+```{r, eval=FALSE}
+(3 + (5 * (2 ^ 2))) # hard to read
+3 + 5 * 2 ^ 2       # clear, if you remember the rules
+3 + 5 * (2 ^ 2)     # if you forget some rules, this might help
+```
+
+
+The text after each line of code is called a
+"comment". Anything that follows after the hash (or octothorpe) symbol
+`#` is ignored by R when it executes code.
+
+Really small or large numbers get a scientific notation:
+
+```{r}
+2/10000
+```
+
+Which is shorthand for "multiplied by `10^XX`". So `2e-4`
+is shorthand for `2 * 10^(-4)`.
+
+You can write numbers in scientific notation too:
+
+```{r}
+5e3  # Note the lack of minus here
+```
+
+## Mathematical functions
+
+R has many built in mathematical functions. To call a function,
+we simply type its name, followed by  open and closing parentheses.
+Anything we type inside the parentheses is called the function's
+arguments:
+
+```{r}
+sin(1)  # trigonometry functions
+```
+
+```{r}
+log(1)  # natural logarithm
+```
+
+```{r}
+log10(10) # base-10 logarithm
+```
+
+```{r}
+exp(0.5) # e^(1/2)
+```
+
+Don't worry about trying to remember every function in R. You
+can simply look them up on Google, or if you can remember the
+start of the function's name, use the tab completion in RStudio.
+
+This is one advantage that RStudio has over R on its own, it
+has auto-completion abilities that allow you to more easily
+look up functions, their arguments, and the values that they
+take.
+
+Typing a `?` before the name of a command will open the help page
+for that command. As well as providing a detailed description of
+the command and how it works, scrolling to the bottom of the
+help page will usually show a collection of code examples which
+illustrate command usage. 
+
+```{r}
+help("mean") 
+?mean
+```
+
+
+## Comparing things
+
+We can also do comparison in R:
+
+```{r}
+1 == 1  # equality (note two equals signs, read as "is equal to")
+```
+
+```{r}
+1 != 2  # inequality (read as "is not equal to")
+```
+
+```{r}
+1 < 2  # less than
+```
+
+```{r}
+1 <= 1  # less than or equal to
+```
+
+```{r}
+1 > 0  # greater than
+```
+
+```{r}
+1 >= -9 # greater than or equal to
+```
+
+> ## Tip: Comparing Numbers
+>
+> A word of warning about comparing numbers: you should
+> never use `==` to compare two numbers unless they are
+> integers (a data type which can specifically represent
+> only whole numbers).
+>
+> Computers may only represent decimal numbers with a
+> certain degree of precision, so two numbers which look
+> the same when printed out by R, may actually have
+> different underlying representations and therefore be
+> different by a small margin of error (called Machine
+> numeric tolerance).
+>
+> Instead you should use the `all.equal` function.
+>
+> Further reading: [http://floating-point-gui.de/](http://floating-point-gui.de/)
+>
+
+## Variables and assignment
+
+We can store values in variables using the assignment operator `<-`, like this:
+
+```{r}
+x <- 1/40
+```
+
+Notice that assignment does not print a value. Instead, we stored it for later
+in something called a **variable**. `x` now contains the **value** `0.025`:
+
+```{r}
+x
+```
+
+More precisely, the stored value is a *decimal approximation* of
+this fraction called a [floating point number](http://en.wikipedia.org/wiki/Floating_point).
+
+Look for the `Environment` tab in one of the panes of RStudio, and you will see that `x` and its value
+have appeared. Our variable `x` can be used in place of a number in any calculation that expects a number:
+
+```{r}
+log(x)
+```
+
+Notice also that variables can be reassigned:
+
+```{r}
+x <- 100
+```
+
+`x` used to contain the value 0.025 and and now it has the value 100.
+
+Assignment values can contain the variable being assigned to:
+
+```{r}
+x <- x + 1 #notice how RStudio updates its description of x in the "Environment" tab
+y <- x * 2
+```
+
+The right hand side of the assignment can be any valid R expression.
+The right hand side is *fully evaluated* before the assignment occurs.
+
+Variable names can contain letters, numbers, underscores and periods. They
+cannot start with a number nor contain spaces at all. Different people use
+different conventions for long variable names, these include
+
+  * periods.between.words
+  * underscores\_between_words
+  * camelCaseToSeparateWords
+
+What you use is up to you, but **be consistent**.
+
+#### Challenge 1
+
+ Which of the following are valid R variable names?
+```{r, eval=FALSE}
+ min_height
+ max.height
+ _age
+ .mass
+ MaxLength
+ min-length
+ 2widths
+ celsius2kelvin
+```
+
+
+
+It is also possible to use the `=` operator for assignment:
+
+```{r}
+x = 1/40
+```
+
+But this is much less common among R users.  The most important thing is to
+**be consistent** with the operator you use. There are occasionally places
+where it is less confusing to use `<-` than `=`, and it is the most common
+symbol used in the community. So the recommendation is to use `<-`.
+
+### R is case-sensitive 
+Prepare a data object called "a", containing number 3 
+```{r}
+a <- 3
+```
+
+Now display the value of a
+
+```{r, eval=FALSE}
+a
+```
+
+But it won't find A
+```{r, eval=FALSE}
+A
+```
+
+#### Challenge 2
+
+What will be the value of each  variable  after each statement in the following program?
+
+```{r, eval=FALSE}
+ mass <- 47.5
+ age <- 122
+ mass <- mass * 2.3
+ age <- age - 20
+```
+
+
+## Challenge 3
+
+Run the code from the previous challenge, and write a command to compare mass to age. Is mass larger than age?
+
+
+## Vectorization
+
+R is *vectorized*, meaning that variables and functions can have vectors as values. For example
+
+```{r}
+1:5
+2^(1:5)
+x <- 1:5
+2^x
+```
+
+This is incredibly powerful. Vector is an ordered collection of  data of the same type, assigned with function combine: c() 
+
+```{r}
+numericVector <- c(4,1,19)
+numericVector
+```
+
+
+This vector is numeric. Numeric vectors can be used in arithmetic expressions. Operations are performed element by element. For other functions, it varies. 
+
+```{r}
+numericVector + 3
+3 * numericVector - 2123
+numericVector * numericVector
+
+mean(numericVector)
+sum(numericVector)
+```
+
+
+Character vectors - remember the quotes for character vectors, if absent - R woul look for an object with this name
+
+```{r}
+characterVector <- c("testword1","testword2")
+```
+
+```{r, eval=FALSE}
+characterVector <- c("testword1",testword2)
+```
+
+The combine function, `c()`, will also append things to an existing vector:
+
+```{r}
+ab_vector <- c('a', 'b')
+ab_vector
+combine_example <- c(ab_vector, 'SWC')
+combine_example
+```
+
+
+Yet another type of data is logical. Usually they appear when we test an expression:
+
+```{r}
+
+logicalVector <-c(TRUE, FALSE, FALSE)
+numericVector > 3
+
+```
+
+
+```{r}
+my_vector <- vector(length = 3)
+my_vector
+```
+
+A vector in R is essentially an ordered list of things, with the special
+condition that *everything in the vector must be the same basic data type*. If
+you don't choose the datatype, it'll default to `logical`; or, you can declare
+an empty vector of whatever type you like.
+
+
+```{r}
+another_vector <- vector(mode='character', length=3)
+another_vector
+```
+
+You can check if something is a vector:
+
+```{r}
+str(numericVector)
+str(another_vector)
+```
+
+The somewhat cryptic output from this command indicates the basic data type
+found in this vector - in this case `chr`, character; an indication of the
+number of things in the vector - actually, the indexes of the vector, in this
+case `[1:3]`; and a few examples of what's actually in the vector - in this case
+empty character strings. If we similarly do
+
+
+####Accessing vector elements
+
+Specific vector elements might be accessed by position, starting from 1:
+```{r}
+numericVector[1]
+
+```
+
+If we wnt more than 1 element, we mau use a vector with indices of interest:
+```{r}
+numericVector[c(2,3)]
+```
+
+It is also a convenient way to repeat or change order of elements:
+```{r}
+numericVector[c(3,2,1,1,1)]
+```
+
+Or to remove some:
+```{r}
+numericVector[-1]
+```
+
+
+Elements of a vector might be named - very handy for accessing specific elements. 
+Let's add names - we prepare them as a character vector 
+
+```{r}
+fruits <- c("orange","apple","plum")
+names(numericVector) <- fruits
+names(numericVector)
+numericVector
+
+numericVector["plum"]
+```
+
+They might be changed or added:
+
+```{r}
+numericVector["apple"] <- 34
+numericVector
+numericVector["pear"] <- 123
+numericVector
+numericVector[4] <- 15
+numericVector
+```
+
+
+Elements of a vector have to be of one type. If they are not, R will coerce them to be.
+
+```{r}
+anotherVector <-c(1,45, "word", TRUE)
+anotherVector 
+```
+
+
+#### NA
+
+Try to get a non-existing element (numericVector has 4 elements)
+```{r, eval=FALSE}
+numericVector[32]  
+```
+
+NA (not available) -  missing value (distinguish from 0).
+Many functions may complain when applied to objects with NAs and require decisions about NA treatment.
+
+If we extend a vector by ading an element far away, R will fill he vector with NAs up to this element
+```{r}
+numericVector[32] <-4
+numericVector
+```
+
+
+At some point you will encounter functions in R that cannot handle missing, infinite,
+or undefined data.
+
+There are a number of special functions you can use to filter out this data:
+
+ * `is.na` will return all positions in a vector, matrix, or data.frame
+   containing `NA` (or `NaN`)
+ * likewise, `is.nan`, and `is.infinite` will do the same for `NaN` and `Inf`.
+ * `is.finite` will return all positions in a vector, matrix, or data.frame
+   that do not contain `NA`, `NaN` or `Inf`.
+ * `na.omit` will filter out all missing values from a vector
+
+```{r}
+is.na(numericVector)
+na.omit(numericVector)
+numericVector+3
+```
+
+
+## Managing your environment
+
+There are a few useful commands you can use to interact with the R session.
+
+`ls` will list all of the variables and functions stored in the global environment
+(your working R session):
+
+```{r}
+ls()
+```
+
+Note here that we didn't give any arguments to `ls`, but we still
+needed to give the parentheses to tell R to call the function.
+
+If we type `ls` by itself, R will print out the source code for that function!
+
+```{r}
+ls
+```
+
+You can use `rm` to delete objects you no longer need:
+
+```{r}
+rm(x)
+```
+
+If you have lots of things in your environment and want to delete all of them,
+you can pass the results of `ls` to the `rm` function:
+
+```{r}
+rm(list = ls())
+```
+
+In this case we've combined the two. Like the order of operations, anything
+inside the innermost parentheses is evaluated first, and so on.
+
+In this case we've specified that the results of `ls` should be used for the
+`list` argument in `rm`. When assigning values to arguments by name, you *must*
+use the `=` operator!!
+
+If instead we use `<-`, there will be unintended side effects, or you may get an error message:
+
+```{r, error=TRUE}
+rm(list <- ls())
+```
+
+> ## Tip: Warnings vs. Errors
+>
+> Pay attention when R does something unexpected! Errors, like above,
+> are thrown when R cannot proceed with a calculation. Warnings on the
+> other hand usually mean that the function has run, but it probably
+> hasn't worked as expected.
+>
+> In both cases, the message that R prints out usually give you clues
+> how to fix a problem.
+>
+
+To copy an object - assign an existing object to a new name
+
+```{r}
+a <- 3
+newObject <- a
+newObject
+a
+newObject <- 4
+newObject
+a
+```
+
+
+## Challenge 4
+
+Clean up your working environment by deleting the mass and age variables.
+
+
+## Matrix
+
+Matrix is a two dimensional array: has columns and rows. When creating it, specify the number of rows or columns. By default it is filled by columns.
+
+```{r}
+exampleMatrix <- matrix(data=1:12, nrow=3, ncol=4)
+exampleMatrix
+```
+
+Columns and rows might have names
+
+```{r}
+colnames(exampleMatrix) <-c("col1", "col2", "col3","col4")
+rownames(exampleMatrix) <- c("row1", "row2", "row3")
+exampleMatrix
+
+colnames(exampleMatrix)
+rownames(exampleMatrix)
+```
+
+Matrices might be accessed by rows/columns numbers `matrix[rows, columns]`, also with the shortcut ":" 
+```{r}
+exampleMatrix[c(1,2), c(1,2,3)]
+
+exampleMatrix[1:2, 1:3]
+```
+
+Which rows are selected now?
+```{r}
+exampleMatrix[,3]
+```
+
+Matrices might be accessed by rows/columns names
+```{r}
+exampleMatrix[c("row1", "row3"), "col1"]
+```
+
+Which columns are selected now?
+```{r}
+exampleMatrix[c("row1", "row3"), ]
+```
+
+
+Elements might be set by location
+```{r}
+exampleMatrix["row1",] <-c(1:4)
+exampleMatrix
+```
+
+Many functions are applied to each element of the matrix.
+
+```{r}
+exampleMatrix + 4
+exampleMatrix * 3
+```
+
+Beware! Line below is NOT matrix multiplication
+
+```{r}
+exampleMatrix * exampleMatrix  
+
+```
+
+Matrix-specific function - transposition: change columns for rows:
+
+```{r}
+t(exampleMatrix)
+```
+
+Matrix can contain different data types - numeric, character, logical. They all have to be of the same type. If not, R will coerce them to be:
+
+```{r}
+exampleMatrix[,1] <- c("one", "two","three")
+exampleMatrix
+```
+
+We can check size of the matrix:
+```{r}
+nrow(exampleMatrix)
+ncol(exampleMatrix)
+dim(exampleMatrix)
+```
+
+## Challenge 5
+
+Make a matrix, this time containing the numbers 1:50,
+with 5 columns and 10 rows.
+Did the `matrix` function fill your matrix by column, or by
+row, as its default behaviour?
+See if you can figure out how to change this.
+(hint: read the documentation for `matrix`!)
+
+
+
+## Data frame
+
+Yet another type of data structure - data frame is similar to matrix, but every column can have a different data type.
+
+```{r}
+exampleDataFrame <- data.frame(patientID= c("A231","B452","C123"),
+                               age =c(12,45,37.5),
+                               disease =c(TRUE, FALSE, TRUE))
+exampleDataFrame
+```
+
+
+Access data frame by column and/or row names, indices (as matrix).
+```{r}
+exampleDataFrame[1:2,"age"]
+exampleDataFrame[,"disease"]
+exampleDataFrame[3,]
+
+exampleDataFrame[,"patientID"] 
+```
+
+A shortcut which will work with data frame but not matrix:
+```{r}
+exampleDataFrame$age
+```
+
+Add a column
+```{r}
+exampleDataFrame <- cbind(exampleDataFrame,season=c("winter", "winter", "summer"))
+exampleDataFrame
+```
+
+
+To see an object just type its name. For a complicated/big object it might be difficult to see it- str() displays structure of an object, head() the beginning of it
+
+```{r}
+exampleDataFrame
+str(exampleDataFrame)
+```
+
+
+## Write/Read in .csv, .Rdata
+
+
+
+To write out a data frame
+```{r}
+cats.df <- data.frame(coat = c("calico", "black", "tabby"),
+                      weight = c(2.1, 5.0, 3.2),
+                      likes_string = c(1, 0, 1))
+cats.df 
+write.csv(cats.df, "feline-data.csv", row.names = FALSE)
+```
+
+Where is this .csv file?
+
+The `read.table` function is used for reading in tabular data stored in a text
+file where the columns of data are separated by punctuation characters such as
+CSV files (csv = comma-separated values). Tabs and commas are the most common
+punctuation characters used to separate or delimit data points in csv files. 
+For convenience R provides 2 other versions of `read.table`. These are: `read.csv`
+for files where the data are separated with commas and `read.delim` for files
+where the data are separated with tabs. Of these three functions `read.csv` is
+the most commonly used.  If needed it is possible to override the default 
+delimiting punctuation marks for both `read.csv` and `read.delim`.
+
+```{r}
+
+cats.df2 <- read.csv(file = "feline-data.csv",header = TRUE, as.is = TRUE)
+ls()
+cats.df
+cats.df2
+```
+
+```{r}
+save(cats.df, file="cats.df.Rdata")
+rm(cats.df)
+ls()
+load("cats.df.Rdata")
+ls()
+```
+
+
+
+## R Packages
+
+It is possible to add functions to R by writing a package, or by
+obtaining a package written by someone else. As of this writing, there
+are over 10,000 packages available on CRAN (the comprehensive R archive
+network). R and RStudio have functionality for managing packages:
+
+* You can see what packages are installed by typing
+  `installed.packages()`
+* You can install packages by typing `install.packages("packagename")`,
+  where `packagename` is the package name, in quotes.
+* You can update installed packages by typing `update.packages()`
+* You can remove a package with `remove.packages("packagename")`
+* You can make a package available for use with `require(packagename)`
+
+
+Additional packages have to be installed from a repository (via drop-down menu in IDE/GUI or with the function `install.packages()`). Then, in every R session they have to be loaded again with the function `library()` or `require()`}.
+
+
+```{r libraries, include=TRUE,  eval=FALSE, echo=TRUE, prompt=TRUE}
+install.packages("devtools")
+library(devtools)
+# install stick package from github - with the function install_github()
+#from the package devtools. This package was created by Francis Smart.
+install_github("EconometricsBySimulation/R-Graphics/Stick-Figures/stick")
+library(stick)
+#And now you can:
+plotStick(1,1,xlim=c(0,2),ylim=c(-2,+3),
+          hat=TRUE,
+          arms="wave",
+          gender="female",
+          face="happy",
+          cex=10,
+          col="purple")
+#Play with parameters! Tip: check in the function help what are the possibilities.
+```
+
+#### Challenge 6
+
+Install the following packages: `ggplot2`, `plyr`, `gapminder`
+
+
+#### Challenge 7
+Start by making a vector with the numbers 1 through 26.
+Multiply the vector by 2, and give the resulting vector
+names A through Z (hint: there is a built in vector called `LETTERS`)
+
+#### Challenge 8
+Prepare a data.frame with whatever information you want. It should have at least 3 columns and at least 5 rows. Make sure one column contains numeric values and  one character values. 
+

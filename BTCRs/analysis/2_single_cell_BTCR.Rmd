@@ -1,0 +1,290 @@
+---
+title: "TCR/BCRs from scRNAseq "
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+#Scope
+
+In this tutorial, we will process receptor data obtained from 10x scRNAseq. For this we will use R packages developed especially to deal with this data in mind and also general libraries.
+
+
+
+```{r setup}
+
+library(tidyverse)
+
+#B/TCR sequencing libraries
+library(alakazam)
+library(immunarch)
+library(airr)
+
+
+#scRNAseq specific libraries
+library(Seurat)
+library(scRepertoire)
+
+
+```
+
+
+10x processing software, CellRanger, produces a series of files with receptor information (provided T/B cell libraries were prepared and run). First, we will have a look on 2 main files produced. One has information about contigs (reads assembled into receptor chains). 
+The second contains per-cell information: for each cell barcode where it was possible, a clonotype info (from alpha and beta chains!)
+-more than one sample
+
+
+We will use an example dataset from 10x: single sample from human.
+'Human CD3+ T cells of a healthy male donor aged 27 were obtained by 10x Genomics from AllCells.'
+Single Cell Immune Profiling Dataset by Cell Ranger 5.0.0
+https://support.10xgenomics.com/single-cell-vdj/datasets/5.0.0/sc5p_v2_hs_T_1k_multi_5gex_t?
+
+
+Gene Expression and TCR Enriched libraries were generated from 1,700 cells (92% viable, expected cell recovery 915) as described in the Chromium Next GEM Single Cell 5' Reagent Kits v2 (Dual Index) User Guide (CG000331 Rev A) and sequenced on an Illumina NovaSeq 6000.
+
+These libraries were analyzed using the new Cell Ranger multi pipeline, which combines Gene Expression, Feature Barcode, TCR enriched, and BCR enriched libraries from the same sample. Cell Ranger multi enables consistent cell calling between gene expression and VDJ libraries.
+
+```{r readin_standard_10x}
+
+contig_file <- "data/10x_data/sc5p_v2_hs_T_1k_multi_5gex_t_vdj_t_all_contig_annotations.csv"
+contigs <- read_csv(contig_file )
+contigs 
+
+
+#this file is the cleaner version of contigs (without not_cells,  with high_confidence, with TRA or TRB chain only, full length and productive)
+rearr_file <- "data/10x_data/sc5p_v2_hs_T_1k_multi_5gex_t_vdj_t_airr_rearrangement.tsv"
+rearr <- read_tsv(rearr_file) 
+rearr 
+
+#rearrangement file is in the standard AIRR format:
+airr::validate_airr(rearr)
+
+clonot_file <- "data/10x_data/sc5p_v2_hs_T_1k_multi_5gex_t_vdj_t_clonotypes.csv"
+clonot <- read_csv(clonot_file)
+clonot 
+
+
+```
+
+We could use CellRanger clonotype assignement and add it to related Seurat object. Instead, we will use a package developped to perform this. 
+Also, to make things more interesting, we will use a slimlined dataset included with the package - it has several samples.
+
+scRepertoire https://f1000research.com/articles/9-47/v2 
+
+scRepertoire uses as input contigs and then allows for more flexible decisions about whether multichain cells are allowed. 
+
+
+```{r scRepertoire}
+
+library(scRepertoire)
+#good in: diversity, overlaps, alluvial graphs
+#works with sce and Seurat object
+data("contig_list") #the data built into scRepertoire, the same format as contigs
+
+glimpse(contig_list)
+
+#Take a peek in the first sample 
+glimpse(contig_list[[1]])
+```
+
+
+### Exercise to train your dplyr/ggplot skills 
+```{r count_chains}
+
+######### Exercise to train your dplyr/ggplot skills 
+# check how many TRA/TRB chains are detected in cells
+#For each cell barcode, check how many TRA and TRB chains are available in the first sample
+contig_list[[1]] %>%
+  filter(cdr3!="None",raw_consensus_id!="None")%>%
+  group_by(barcode)%>%
+  summarise(number_of_TRAs = sum(chain=="TRA"),
+            number_of_TRBs = sum(chain=="TRB"))
+
+#Check how many cells have each combination of chain number (0 alpha - 1 beta, 1 alpha - 1 beta etc.).
+contig_list[[1]] %>%
+  filter(cdr3!="None",raw_consensus_id!="None")%>%
+  group_by(barcode)%>%
+  summarise(number_of_TRAs = sum(chain=="TRA"), number_of_TRBs = sum(chain=="TRB"))%>%
+  group_by(number_of_TRAs, number_of_TRBs)%>%
+  summarise(number_of_cells = n())
+
+
+#Repeat the same for all samples
+lapply(contig_list, function(one_rep){
+  one_rep%>%
+  filter(cdr3!="None",raw_consensus_id!="None")%>%
+  group_by(barcode)%>%
+  summarise(number_of_TRAs = sum(chain=="TRA"), number_of_TRBs = sum(chain=="TRB"))%>%
+  group_by(number_of_TRAs, number_of_TRBs)%>%
+  summarise(number_of_cells = n())
+})
+
+#Iterating over sample numbers, instead of samples - to add this ID to the final data frame
+lapply(1:length(contig_list), function(one_rep){
+  contig_list[[one_rep]]%>%
+  filter(cdr3!="None",raw_consensus_id!="None")%>%
+  group_by(barcode)%>%
+  summarise(number_of_TRAs = sum(chain=="TRA"), number_of_TRBs = sum(chain=="TRB"))%>%
+  group_by(number_of_TRAs, number_of_TRBs)%>%
+  summarise(number_of_cells = n())%>%
+  mutate(ID=paste0("sample", one_rep))
+})
+
+#Joining it all in one data frame
+chains_per_samples <- lapply(1:length(contig_list), function(one_rep){
+  contig_list[[one_rep]]%>%
+  filter(cdr3!="None",raw_consensus_id!="None")%>%
+  group_by(barcode)%>%
+  summarise(number_of_TRAs = sum(chain=="TRA"), number_of_TRBs = sum(chain=="TRB"))%>%
+  group_by(number_of_TRAs, number_of_TRBs)%>%
+  summarise(number_of_cells = n())%>%
+  mutate(ID = paste0("sample", one_rep))}) %>%
+  bind_rows()%>%
+  ungroup()
+
+# Plot for each sample number of cells with each combination of chain numbers
+chains_per_samples %>%
+  ggplot(aes(x=interaction(number_of_TRAs,number_of_TRBs), y= number_of_cells, col=ID)) +
+  geom_jitter(height=0, width=0.2, size=3, alpha=0.5)  +   #from here just plot polishing
+  theme_bw()+
+  xlab("TRA.TRB chains")+
+  scale_color_discrete(name="Sample")
+
+# Plot for each sample fraction of cells with each combination of chain numbers
+chains_per_samples %>%
+  group_by(ID)%>%
+  mutate(fraction_of_cells = number_of_cells/sum(number_of_cells))%>%
+  ggplot(aes(x=interaction(number_of_TRAs,number_of_TRBs), y= fraction_of_cells, col=as.factor(ID))) +
+  geom_jitter(height=0, width=0.2, size=3, alpha=0.5)+
+  theme_bw()+
+  xlab("TRA.TRB chains")+
+  scale_color_discrete(name="Sample")
+
+```
+
+###Reduce to clonotype-per cell information
+
+```{r screpertoire_combine_contigs_into_clonotypes}
+
+#########
+#Derive receptor info for each cell
+#Obtain a per-barcode object (concatenating info about chain contigs). Possible to perform by nucleotide or aminoacid sequence, with/without VJ information. For B cells (function combineBCR) it is possible to group by V gene and Hamming distance 85% . Arguments removeNa/removeMulti/filterMulti decide about handling many chains cases
+
+combined <- combineTCR(contig_list, 
+                      samples = c("PY", "PY", "PX", "PX", "PZ","PZ"), 
+                      ID = c( "P", "T",  "P", "T", "P", "T"),
+                      cells ="T-AB",
+                      removeNA = FALSE,
+                      removeMulti = FALSE,
+                      filterMulti = FALSE)
+
+class(combined)
+
+names(combined)
+
+glimpse(combined[[1]])
+
+combined[[1]] %>%head()
+
+colnames(combined[[1]])
+
+#Count cells with TCRs and count unique TCRs
+#cloneCall options: gene, aa, gene+nt 
+
+quantContig(combined, cloneCall="gene+nt", scale = TRUE)
+
+quantContig(combined, cloneCall="gene", scale = TRUE, exportTable = TRUE)
+
+#The same manualy from the combined object
+combined[[1]]$CTgene%>%
+  length()
+combined[[1]]$CTgene %>%
+  unique%>%length()
+
+#How many clonotypes with 1,2,....clones  
+abundanceContig(combined, cloneCall = "gene+nt", scale = FALSE)  
+
+#Lengths of CDR3s
+lengthContig(combined, cloneCall="aa", chains = "single")  #Guess why so many CDR3 with length=2 - it counts 'NA' as 2AA!
+
+```
+
+###Characterise repertoir
+
+```{r screpertoire_clonotypes_insights}
+
+
+#Track presence of a clone within samples
+compareClonotypes(combined, numbers = 10, samples = c("PX_T", "PX_P"), 
+                    cloneCall="aa", graph = "alluvial")
+
+#Add now the sample "PZ_P" (another individual, PBMC). What do you expect?
+compareClonotypes(combined, numbers = 10, samples = c("PX_T", "PX_P", "PZ_P"), 
+                    cloneCall="aa", graph = "alluvial")
+
+
+#Compare how expanded are clonotypes in each of the samples. What do you expect for the paired comparison of PBMC and tumour?
+clonalHomeostasis(combined, cloneCall = "aa")
+
+#Do you expect any overlap in TCRs between samples? What biological and technical factors would increase/decrease overlap?
+clonalOverlap(combined, cloneCall = "aa", method = "overlap", exportTable = FALSE)
+
+#Diversity - some measures, not normalised.
+clonalDiversity(combined, cloneCall = "gene", group = "ID", exportTable = TRUE)
+
+
+clonalDiversity(combined, cloneCall = "gene", group = "ID", exportTable = FALSE)
+
+```
+
+###Match expression data with with per-barcode receptor info
+```{r screpertoire_match_expression}
+
+#### Read in expression Seurat object
+library(Seurat)
+
+screp_example <- get(data("screp_example"))
+screp_example 
+
+#Seurat Format, use standard Seurat functions/framework
+DimPlot(screp_example)
+
+#Match clonotypes of barcodes to expression  
+#Here make sure cell barcodes/sample names are matched between datasets!
+screp_example <- combineExpression(combined,
+                                   screp_example,
+                                   cloneCall="gene", groupBy = "sample")
+
+#Clone info is now in the metadata slot
+screp_example@meta.data %>%head()
+
+#Lets add info about from what size 
+slot(screp_example, "meta.data")$cloneType <- factor(slot(screp_example, "meta.data")$cloneType, 
+                levels = c("Hyperexpanded (100 < X <= 500)", "Large (20 < X <= 100)", 
+                            "Medium (5 < X <= 20)", "Small (1 < X <= 5)", 
+                            "Single (0 < X <= 1)", NA))
+
+occupiedscRepertoire(screp_example, x.axis = "cluster")
+
+#Get scRepertoire color scheme:
+colorblind_vector <- colorRampPalette(c("#FF4B20", "#FFB433", "#C6FDEC", "#7AC5FF", "#0348A6"))
+
+#Plot cells coloured by source (tumour/PBMC)
+DimPlot(screp_example, group.by = "Type") + 
+    scale_color_manual(values=colorblind_vector(2))
+
+#Plot cells coloured by clone size
+DimPlot(screp_example, group.by = "cloneType") +
+    scale_color_manual(values = c(rev(colorblind_vector(5))), na.value="grey")
+
+#Show specific clonotypes
+screp_example <- highlightClonotypes(screp_example, cloneCall= "aa", 
+                sequence = c("CAVNGGSQGNLIF_CSAEREDTDTQYF", "NA_CATSATLRVVAEKLFF"))
+DimPlot(screp_example, group.by = "highlight")
+
+
+
+```
+
+
+

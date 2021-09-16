@@ -1,0 +1,458 @@
+---
+title: "TCR/BCRs from bulk sequencing"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+# Scope - working with bulk repertoires
+
+In this tutorial, we will process receptor data obtained from bulk sequencing. For this we will use R packages developed especially to deal with this data and also general R libraries.
+The goal is to familiarize yourself with the functions from these packages and to practice general R usage.
+
+
+```{r setup}
+library(tidyverse)
+
+#B?TCR sequencing libraries
+library(alakazam)
+library(immunarch)
+library(airr)
+
+
+```
+
+
+#Repertoire data - load, structure
+
+We apply the following framework to bulk sequenced repertoires, but it might be used also for summarized sequences from cell sequencing.
+We will use a TCR dataset coming with the package Immunarch (downloadable from CRAN, for example https://cran.rstudio.com/). Immunarch can read in several common AIRR data format (see _?repLoad_), but it uses a summarized version of data - one line per clonotype, not detected rearrangement.
+
+First, let's read the data in and investigate its structure.
+
+```{r immunarch_glimpse}
+
+#We will use a dataset included with Immunarch. It has samples from two groups, each sample repertoire is a tsv file. Additionally there is a metadata.txt file (with info about sample and experimental detail) in the same directory. .tsv files have columns specific for Immunarch format, but Immunarch reads in all major formats (argument .format, check ?repLoad)
+
+immdata <- repLoad("data/reps")
+
+# Immdata is a two-element list. First element is a list of tibbles - each tibble is one sample. Second element is metadata. Tibble = fancy data.frame
+
+glimpse(immdata)
+
+names(immdata)
+
+names(immdata$data)
+
+glimpse(immdata$data[[1]])
+
+immdata$metadata
+
+```
+
+Repertoire data is a list of tibbles (one tibble per sample). We can access its content with standard tidyr functions, but there are also specialized  Immunarch functions - shortcuts for repertoire-specific operations
+
+
+```{r immunarch_extract}
+#Let's have a look on these repertoires. Check most abundant clonotypes from the first repertoire (Immunarch function top() here. **Could you do it with dplyr functions?)
+
+top(immdata$data[[1]])
+
+#Now look on 3 most abundant clonotypes from sample 4
+
+top(immdata$data[[4]], .n=3)
+
+#Now have a look on 3 most abundant clonotypes from each repertoire. Use lapply() to execute the same function as previously on each element of the list.
+lapply(immdata$data, top, .n=3)
+
+#actually top() guesses what we want to do when we input a list of samples instead of one sample:
+top(immdata$data, .n=3)
+
+
+#We can directly gather this list into a tibble with bind_rows(), preserving sample names:
+top(immdata$data, .n=3)%>%
+  bind_rows(.id="sample_id")
+
+# Extract all clonotypes with V gene  'TRBV10-1' from the first sample
+immdata$data[[1]]%>%
+  filter( V.name == 'TRBV10-1')
+
+#Now extract  all clonotypes with V gene  'TRBV10-1' from all samples into one data frame. How many there are together? # 222
+#HERE YOUR CODE
+
+
+#How many coding and noncoding sequences are included in the first sample? 6443
+coding(immdata$data[[4]]) %>%
+  nrow()
+#HERE YOUR CODE
+
+```
+
+Immunarch has several functions to summarize repertoires and visualize summaries. Visualizations functions are ggplot2-based, so you can adjust them too.
+
+```{r immunarch_summaries}
+
+#repExplore() produces summaries of cell and clonotype counts - check ?repExplore for details.
+
+repExplore(immdata$data, "volume") 
+
+#To visualize, you may use your own function or Immunarch's vis() directly on this output:
+repExplore(immdata$data, "volume")%>%
+  vis()
+
+#repExplore() provides several summaries. Check what each of the methods summarizes: .method = c("volume", "count", "len", "clones")
+#Now plot cell counts ('clones') per sample. Which sample has most?  #A4-i192
+#HERE YOUR CODE
+
+#What is summarized with "count" ?
+repExplore(immdata$data, "count") %>%
+  vis()
+
+
+###How you could mimic vis() for counts
+#The same summary, but plotted with standard ggplot instead of the vis()
+repExplore(immdata$data, "count") %>%
+  ggplot() + geom_path(aes(x = Clone.num, y = Clonotypes, col = Sample, group = Sample))+
+  scale_y_log10() + scale_x_log10() + theme_classic()
+
+```
+
+Check how many TCRs are in common between each pair of samples. When would you expect a substantial overlap/when overlap would be a reason to worry?
+
+
+```{r immunarch_overlap_clonality}
+
+repOverlap(immdata$data,
+           .col="aa+v",
+           .method="overlap") %>%
+  vis() 
+
+
+#What number of clonotypes is needed to make up 50 .perc of cells
+repClonality(immdata$data,
+             "clonal.prop",
+             .perc=50) %>%
+  vis()
+
+
+#Compute diversity
+repDiversity(immdata$data, 
+             .method="inv.simp",
+             .col="aa+vv")%>%
+  vis() 
+
+```
+
+Check for frequency of  V and J usage. Derived table of gene frequencies might be used for plots or further reduced, for example by MDS (multidimensional scaling) or PCA.
+
+```{r immunarch_vjusage}
+
+gu <- geneUsage(immdata$data, .type = "segment", .norm=TRUE)
+vis(gu)
+
+geneUsageAnalysis(gu, "pca", .verbose = FALSE) %>%
+  vis()
+
+
+gu %>%
+  pivot_longer(cols = `A2-i129`: MS6, names_to = "sample",values_to = "freq", values_drop_na = TRUE)%>%
+  mutate(sample_type = ifelse(grepl("M", sample), "M", "A"))%>%
+  ggplot() +geom_boxplot(aes( x= Names, y= freq, group=interaction(sample_type,Names), fill=sample_type))+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle=45,vjust = 0.5))+
+  ggtitle("V gene usage ")
+
+
+```
+
+Find specific clonotypes and compare their frequencies across samples.
+
+```{r immunarch_clonetracking}
+
+#Define clonotypes of interest  - we care here only about CDR3
+target <- c("CASSLEETQYF", "CASSDSSGGANEQFF", "CASSDSSGSTDTQYF", "CASSLAGGYNEQFF", "CASSDSAGGTDTQYF", "CASSLDSYEQYF", "CASSSAGGYNEQFF")
+
+#Find them manually
+immdata$data[[1]]%>%
+  filter(CDR3.aa %in%target )
+  
+tc <- trackClonotypes(immdata$data, target, .col = "aa")
+
+vis(tc)
+
+```
+
+Immunarch makes it easy to subsample repertoires to a common size.
+
+```{r immunarch_subsample}
+
+#Downsampling - sample 100 cells
+ds = repSample(immdata$data, "downsample", 100)
+glimpse(ds)
+
+```
+
+
+It also allows to work directly with popular database downloads. Here, we'll use McPas database (downloaded from http://friedmanlab.weizmann.ac.il/McPAS-TCR/ ) to find in our samples sequences reported previously to be respnding to CMV antigens. To simplify, we do not take TCRA nor HLA into consideration.
+
+```{r immunarch_database}
+#Find in McPAS CDR3 from the immdata. Choose one length of CDR3 and prepare sequence logo
+# database_file <- "http://friedmanlab.weizmann.ac.il/McPAS-TCR/session/450fd4a0f41ea0e391d61a90331b4678/download/downloadDB?w="
+database_file <- "data/McPAS-TCR.csv"
+
+#You can read directly the whole database file and investigate what is there:
+#mcpas_df <- read_csv( database_file )
+#mcpas_df
+
+mcpas <- dbLoad(.path = database_file,
+                .db="mcpas",
+                .species = "Human",
+                .chain = "TRB",
+                .pathology = "Cytomegalovirus (CMV)")
+
+tcrs_matched_to_mcpas <- dbAnnotate(.data = immdata$data, .db = mcpas,
+                               .data.col = c("CDR3.aa", "V.name"),
+                               .db.col = c("CDR3.beta.aa", "TRBV"))
+
+tcrs_matched_cmvs <- tcrs_matched_to_mcpas %>%
+  filter(Samples>1) %>%
+  as_tibble()
+
+```
+
+
+###Additional exercise
+Now we can prepare a seqlogo from sequences of one length (I choose 11 aminoacids)
+
+```{r immunarch_seqlogo}
+
+tcrs_matched_cmvs
+
+nchar(tcrs_matched_cmvs$CDR3.aa)
+
+chosen_length=11
+
+for_logo <- tibble(CDR3.aa=tcrs_matched_cmvs$CDR3.aa, len= nchar(tcrs_matched_cmvs$CDR3.aa))%>%
+  arrange(len)%>%
+  filter(len==chosen_length)
+
+for_logo
+
+#To prepare seqlogo, we have to build kmer profile - a matrix describing how often an aminoacid is on 1,2...,11 position 
+
+getKmers(for_logo, .k=11)%>%
+  kmer_profile%>%
+  vis_seqlogo
+
+```
+
+
+## AIRR format 
+Have a look on AIRR format - use a dataset in this format supplied with the package alakazam.
+
+```{r read_airr}
+
+  airr_file <- system.file("extdata", "example_airr.tsv.gz", package="alakazam")  #Establish the full path of the example file from "alakazam"
+  db_airr <- read_tsv(airr_file) 
+ 
+  # Check column names. Is this information per clonotype chain or per sequenced receptor?
+  # What cells were sequenced, B or T?
+  # What do contain columns:  v_cigar, np1_length  (check at https://docs.airr-community.org/en/stable/datarep/rearrangements.html#rearrangementschema)
+  # How many cells were sequenced?
+  # How many clonotypes were sequenced? What is the abundance of the biggest clonotype?
+  # Check whether this file complies with AIRR format specification
+  
+  # Check column names. Is this information per clonotype chain or per sequenced receptor?
+  colnames(db_airr)
+  
+  # What do contain columns:  v_cigar, np1_length  (check at https://docs.airr-community.org/en/stable/datarep/rearrangements.html#rearrangementschema)
+  # How many cells were sequenced?
+  nrow(db_airr)
+  
+  # How many clonotypes were sequenced? What is the abundance of the biggest clonotype? Define a clonotype as a combination of V and J genes and nucleotide junction sequence
+ db_airr%>%
+   group_by(v_call, j_call,junction)%>%
+   summarise(N=n())%>%
+   arrange(desc(N))
+ 
+  # Check whether this file complies with AIRR format specification 
+  validate_airr( db_airr)
+  
+```
+
+####Extracting TCR sequences from RNAseq
+
+This is an additional part, we won't have time to cover it and I intend it as a pointer towards what is possible. THIS is not R part, TRUST4 has to be run from commandline.
+
+```{bash}
+#We will extract TCRs from RNAseq data
+
+trust4_installation=/usr/local/TRUST4
+trust4_installation=~/bin/TRUST4/
+
+$trust4_installation/run-trust4 \
+-1 data/RNAseq/ERR2539041/ERR2539041_1.fastq.gz  \
+-2 data/RNAseq/ERR2539041/ERR2539041_2.fastq.gz \
+-f $trust4_installation/human_IMGT+C.fa \
+-o results/receptors_extracted_from_RNAseq
+
+```
+The final outciome is in the file XXXX_report.tsv, let's load it into R
+
+```{r}
+rnaseq_extracted  <- read_tsv("results/receptors_extracted_from_RNAseq_report.tsv")
+
+#To see what sort of sequences were recovered. What cells were used for RNAseq?
+rnaseq_extracted %>%
+  mutate(chain=case_when(grepl("TRB", V)~"TRB",
+                         grepl("TRA", V)~"TRA",
+                        grepl("TRG", V)~"TRG",
+                        grepl("TRD", V)~"TRD",
+                        grepl("IGK", V)~"IGK",
+                        grepl("IGL", V)~"IGL"))%>%
+  group_by(chain) %>%
+  summarise(rearrangements = sum(`#count`))
+
+
+#to put it into an immunarch object
+  rnaseq_extracted_immunarch <- rnaseq_extracted %>%
+  transmute(Clones= `#count`,
+         Proportion=frequency,
+         CDR3.nt=CDR3nt,
+         CDR3.aa=CDR3aa,
+         V.name=V,
+         D.name=D,
+         J.name=J,
+         V.end=NA,
+          D.start=NA,
+          D.end=NA,
+          J.start=NA,
+          VJ.ins=NA,
+          VD.ins=NA,
+          DJ.ins=NA,
+          Sequence=NA)
+
+immdata_from_RNA <- list( data=rnaseq_extracted_immunarch, metadata= NA)
+```
+
+####B cell - clones and trees
+
+This is an additional part, we won't have time to cover it and I intend it as a pointer towards what is possible.
+
+##Identifying clones in B cell repertoire
+
+We will use  a method described in https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007977 
+In short, rearrangments are grouped together when they share V and J genes and the junction and at least some somatic hypermutations.
+
+We will divide rearrangements into clonal groups.
+
+```{r clones_scooper}
+#load in the library scoper(part of the Alakazam suite)
+library(scoper)
+
+results <- spectralClones( db_airr , threshold=0.15)
+glimpse(results)
+plot(results, binwidth=0.02)
+
+#Extract the  db_airr with added column with clone assignement
+results_db <- as.data.frame(results) %>%
+  as_tibble()
+
+#How many groups of clones were established?
+
+#Clone group info is in results_db$clone_id. They have consecutive names, but here stored as characters instead of numbers - to be able to see how many clone groups, we need to interpret these names as integers
+
+results_db$clone_id%>%
+  as.integer()%>%
+  max()
+
+#Which clonotype is the biggest one?
+results_db$clone_id%>%
+  table()%>%
+  sort(decreasing = TRUE)%>%
+  head()
+
+
+
+```
+
+#####Phylogenetic trees - following up somatic mutations
+
+We will use the package alakazam and as implemented there Phylip for building trees and the general graph package igraph to visualize the results. There are other solution than Phylip out there (look in the alakazam), Phylip as you can see from its webpage (https://evolution.genetics.washington.edu/phylip.html) is quite a dated tool, which brings to mind this picture https://xkcd.com/2347/ 
+
+```{r trees_phylip_graphs}
+
+
+library(alakazam)
+library(igraph)
+
+#Take only the clone 434 642 
+sub_db <- filter(results_db , clone_id == "434", nchar(sequence_alignment)==400)%>%
+  mutate(sample_id="sam1")
+
+#Check number of rearrangements in the sub_db. Why does it differ from sub_db?
+clone <- makeChangeoClone(sub_db, text_fields=c("sample_id", "c_call"))
+
+
+# It will build a maximum parsimony tree with all sequences and return it as an igraph object. This tree contains the original sequences, as well as an inferred germline sequence and all presumed intermediate sequences (between germline-original seqs as well as between different original seqs), so all input sequences are eventually linked to the germline.
+#It takes in nucleotide sequences and it takes a while
+
+phylip_exec <- "~/bin/phylip-3.695/exe/dnapars"
+phylip_exec <- "/usr/bin/phylip/dnapars"
+
+graph <- buildPhylipLineage(clone, phylip_exec, rm_temp=TRUE)
+
+#Have a look on the output. It is of special class, igraph 
+
+graph  
+glimpse(graph)
+plot(graph)
+
+#Vertices of this graph are sequences. Information about constant region, sequence and count of the sequences in the original dataset is preserved in attributes
+vertex_attr(graph) %>%as_tibble()
+
+#Edge's weight indicats number of mutations to go from one sequence to another
+edge_attr(graph) %>%as_tibble()
+
+#The plot is very crowded and without information about the receptor isotype - let's clarify a bit
+
+oldgraph <- graph #keep old version for a reference
+
+#work on vertices
+V(graph)
+V(graph)$color <- "steelblue"
+V(graph)$color[V(graph)$name == "Germline"] <- "red"
+V(graph)$color[grepl("Inferred", V(graph)$name)] <- "white"
+V(graph)$label <- V(graph)$c_call
+V(graph)$size <- 4
+vertex_attr(graph) %>%as_tibble()
+
+plot(graph)
+plot(oldgraph)
+
+
+#As this is a huge graph, we will  keep only edges with Hamming distance = at most 5 (arbitrary decision)
+g_sub <- delete.edges(graph, E(graph)[weight > 5])
+plot(g_sub)
+
+#Still lots of structure. Let's have a look on connected groups of vertices:
+groups(components(g_sub))
+
+
+#I want to choose a subgraph: (1) containing IGHA sequences (2) and with at least 10 vertices. 
+#(1)
+IGHA <-  names(V(g_sub))[which(V(g_sub)$label =="IGHA")]
+#(2)
+at_least_10v <- groups(components(g_sub))[sapply(groups(components(g_sub)), length)>10]
+
+#(3) look which ones have some IGHA sequences. Group 11 has some
+lapply(at_least_10v, function(x)intersect(x, IGHA))
+
+#Now I take a subgraph containing only group 11
+g_subb <-induced_subgraph(graph = g_sub ,v= groups(components(g_sub))[["11"]])
+plot(g_subb)
+
+
+```
+
+

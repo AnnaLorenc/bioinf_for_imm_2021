@@ -1,0 +1,89 @@
+---
+title: "Introduction to R and RStudio part1 - challenges"
+author: "Anna Lorenc anna.lorenc@kcl.ac.uk"
+source: Rmd
+output: pdf_document
+---
+
+#Challenges
+
+#### Challenge 1
+
+ Which of the following are valid R variable names?
+```{r, eval=FALSE}
+ min_height
+ max.height
+ _age
+ .mass
+ MaxLength
+ min-length
+ 2widths
+ celsius2kelvin
+```
+
+
+#### Challenge 2
+
+What will be the value of each  variable  after each statement in the following program?
+
+```{r, eval=FALSE}
+ mass <- 47.5
+ age <- 122
+ mass <- mass * 2.3
+ age <- age - 20
+```
+
+
+#### Challenge 3
+
+Run the code from the previous challenge, and write a command to compare mass to age. Is mass larger than age?
+
+
+#### Challenge 4
+
+Clean up your working environment by deleting the mass and age variables.
+
+#### Challenge 5
+
+Make a matrix, this time containing the numbers 1:50,
+with 5 columns and 10 rows.
+Did the `matrix` function fill your matrix by column, or by
+row, as its default behaviour?
+See if you can figure out how to change this.
+(hint: read the documentation for `matrix`!)
+
+#### Challenge 6
+
+Install the following packages: `ggplot2`, `plyr`, `gapminder`
+
+
+#### Challenge 7
+Start by making a vector with the numbers 1 through 26.
+Multiply the vector by 2, and give the resulting vector
+names A through Z (hint: there is a built in vector called `LETTERS`)
+
+
+#### Challenge 8
+Prepare a data.frame with whatever information you want. It should have at least 3 columns and at least 5 rows. Make sure one column contains numeric values and  one character values. 
+
+#### Challenge 9
+Install a package stick from the github and play with plotStick() function.
+
+```{r libraries, include=TRUE,  eval=FALSE, echo=TRUE, prompt=TRUE}
+install.packages("devtools")
+library(devtools)
+# install stick package from github - with the function install_github()
+#from the package devtools. This package was created by Francis Smart.
+install_github("EconometricsBySimulation/R-Graphics/Stick-Figures/stick")
+library(stick)
+#And now you can:
+plotStick(1,1,xlim=c(0,2),ylim=c(-2,+3),
+          hat=TRUE,
+          arms="wave",
+          gender="female",
+          face="happy",
+          cex=10,
+          col="purple")
+#Play with parameters! Tip: check in the function help what are the possibilities.
+```
+
